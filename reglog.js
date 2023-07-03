@@ -3,36 +3,24 @@ const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const { connectToDatabase, User, Product } = require('./database.js');
+const { getUserIdforStorage } = require('./server.js')
 
-// Create Express app
 const app = express();
 
-// Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({credentials:true, origin:['http://localhost:4200','http://localhost:3000']}));
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: 'secret',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: true,
 }));
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://lokanath:lokanath18@cluster0.vaykngi.mongodb.net/myreglogin', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+connectToDatabase();
 
-const User = mongoose.model('User', {
-  name: { type: String, required: true },
-  email: { type: String, required: true},
-  dob: { type: Date, required: true },
-  password: { type: String, required: true} 
-});
 
 // Configure Passport
 const custField={
@@ -47,7 +35,6 @@ const verify = async (email, password, done) => {
       return done(null, false);
     }
     const isValid = await bcrypt.compare(password, user.password);
-    console.log(password, user.password, isValid);
     if (isValid) {
       return done(null, user);
     } else {
@@ -59,6 +46,7 @@ const verify = async (email, password, done) => {
 };
 
 
+
 const strategy= new LocalStrategy(custField, verify)
 
 passport.use(strategy);
@@ -67,20 +55,32 @@ passport.serializeUser(function(user, done) {
   done(null, user.id);
 });
 
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
-  });
+passport.deserializeUser((id, done) => {
+  User.findById(id) 
+  .then((user) =>{
+    done(null, user);
+  })
+  .catch(err=> done(err))
 });
+
 
 app.use(passport.initialize());
 app.use(passport.session());
-app.get((req,res, next)=> {
-  console.log(req.user)
-  console.log(req.session)
+app.use((req, res, next)=> {
+  console.log("1",req.user)
+  console.log("2",req.session)
+  console.log("3",req.session.passport)
+  return next();
 })
 
-// Routes
+//Routes
+app.get('/',(req,res)=>{
+  console.log("4",req.user.id)
+  res.json({uid:req.user.id})
+});
+
+
+//register route
 app.post('/register', async (req, res) => {
   try {
     let hashedPassword= await bcrypt.hash(req.body.password, 10);
@@ -91,21 +91,47 @@ app.post('/register', async (req, res) => {
       password: hashedPassword
     });
     user.save()
-    res.status(200).json(message="Registration Successfull");
+    res.status(200).json({redirect:"/login"});
   }
   catch {
     res.status(500).send('Error registering new user.');
   }
 });
 
+
+//login route
 app.post('/login', passport.authenticate('local'), (req, res) => {
   try {
-    res.status(200).json(message="Login successful");
+    console.log("EMAIL",req.body.email)
+    req.session.user = {
+      uid : req.user.id,
+      emailId: req.body.email,
+    }
+    req.session.uid = req.user.id; 
+    getUserIdforStorage(req.session);
+    res.status(200).json({redirect:"/dashboard"});
   }
   catch {
     res.status(500).send('Error in login');
   }
 });
+
+// dashboard route
+app.get('/dashboard', (req, res) => {
+  if (req.session.user) {
+    res.send('Dashboard');
+    res.redirect('/dashboard');
+  } else {
+    res.redirect('/login');
+  }
+});
+
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.json({redirect:'/login'})
+});
+
 
 // Start the server
 app.listen(3000, function() {
