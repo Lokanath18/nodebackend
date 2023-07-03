@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
+const mongodbConnection = process.env.MONGODB_CONNECTION;
 
 async function connectToDatabase() {
   try {
-    await mongoose.connect('mongodb+srv://lokanath:lokanath18@cluster0.vaykngi.mongodb.net/myproductapp', {
+    await mongoose.connect(mongodbConnection, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });

@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const session = require('express-session');
 const { connectToDatabase, User, Product } = require('./database.js');
+require('dotenv').config();
 
 app.use(cors());
 app.use(express.json());
@@ -77,7 +78,8 @@ app.put('/user/update/:itemId', (req, res) => {
 
 
 // Start the server
-app.listen(8000, () => {
+const server_port = process.env.PORT_SERVER;
+app.listen(server_port, () => {
   console.log('Server is running on port 8000');
 });
 

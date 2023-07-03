@@ -5,7 +5,8 @@ const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const { connectToDatabase, User, Product } = require('./database.js');
-const { getUserIdforStorage } = require('./server.js')
+const { getUserIdforStorage } = require('./server.js');
+require('dotenv').config();
 
 const app = express();
 
@@ -67,15 +68,15 @@ passport.deserializeUser((id, done) => {
 app.use(passport.initialize());
 app.use(passport.session());
 app.use((req, res, next)=> {
-  console.log("1",req.user)
-  console.log("2",req.session)
-  console.log("3",req.session.passport)
+  console.log(req.user)
+  console.log(req.session)
+  console.log(req.session.passport)
   return next();
 })
 
 //Routes
 app.get('/',(req,res)=>{
-  console.log("4",req.user.id)
+  console.log(req.user.id)
   res.json({uid:req.user.id})
 });
 
@@ -134,6 +135,7 @@ app.get('/logout', (req, res) => {
 
 
 // Start the server
-app.listen(3000, function() {
+const reglog_port = process.env.PORT_REGLOG;
+app.listen(reglog_port, function() {
   console.log('Server started on port 3000');
 });
